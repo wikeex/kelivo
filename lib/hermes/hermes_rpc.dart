@@ -257,7 +257,7 @@ extension HermesPromptRpc on HermesGateway {
   }) async {
     await sendRpc('prompt.submit', {
       'session_id': sessionId,
-      'prompt': prompt,
+      'text': prompt,
       if (attachments != null) 'attachments': attachments,
       if (options != null) 'options': options,
     });

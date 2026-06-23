@@ -163,13 +163,20 @@ class HermesGateway {
     _state = HermesConnectionState.authenticating;
 
     final params = await auth.authParams();
-    final query = params.wsQueryParams.entries
-        .map((e) => '${e.key}=${e.value}')
-        .join('&');
-    final wsUrl = '${backend.url}/api/ws${query.isNotEmpty ? '?$query' : ''}';
+    // URL-encode query values so special chars (e.g. '#') survive URI parsing
+    final encodedParams = params.wsQueryParams.map(
+      (k, v) => MapEntry(k, Uri.encodeComponent(v)),
+    );
+    final baseUri = Uri.parse(backend.url);
+    final wsUrl = baseUri.replace(
+      path: baseUri.path.endsWith('/')
+          ? '${baseUri.path}api/ws'
+          : '${baseUri.path}/api/ws',
+      queryParameters: encodedParams.isNotEmpty ? encodedParams : null,
+    );
 
     try {
-      _ws = WebSocketChannel.connect(Uri.parse(wsUrl));
+      _ws = WebSocketChannel.connect(wsUrl);
       _wsSub = _ws!.stream.listen(
         _onMessage,
         onError: _onError,

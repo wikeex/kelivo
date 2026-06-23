@@ -69,11 +69,11 @@ class HermesChatAdapter {
 
     if (event is MessageDelta) {
       _textBuffer.write(event.text);
-      _emitContent(isDone: false);
+      _emitContent(event.text, isDone: false);
     } else if (event is MessageComplete) {
       _isDone = true;
       _finalUsage = _parseUsage(event);
-      _emitContent(isDone: true);
+      _emitContent('', isDone: true);
       _completionCompleter.complete();
     } else if (event is ReasoningDelta) {
       _reasoningBuffer.write(event.text);
@@ -156,8 +156,7 @@ class HermesChatAdapter {
     return false;
   }
 
-  void _emitContent({required bool isDone}) {
-    final text = _textBuffer.toString();
+  void _emitContent(String text, {required bool isDone}) {
     _chunkController.add(
       ChatStreamChunk(
         content: text,
@@ -175,17 +174,17 @@ class HermesChatAdapter {
 
   void _emitReasoning() {
     // Reasoning is emitted as a non-done content chunk with reasoning field set.
-    _emitContent(isDone: false);
+    _emitContent('', isDone: false);
   }
 
   void _emitToolCalls() {
     // Re-emit with updated tool calls but no text change
-    _emitContent(isDone: false);
+    _emitContent('', isDone: false);
   }
 
   void _emitToolResults() {
     // Re-emit with updated tool results but no text change
-    _emitContent(isDone: false);
+    _emitContent('', isDone: false);
   }
 
   void _emitToolGenerating(String toolName, String content) {

@@ -685,14 +685,19 @@ class ChatActions {
   }) async {
     final conversationId = assistantMessage.conversationId;
 
-    // Ensure a Hermes session exists
-    var sessionId = hp.activeSessionId;
-    if (sessionId == null || sessionId.isEmpty) {
-      try {
-        sessionId = await hp.resumeMostRecentSession();
-      } catch (_) {
-        sessionId = await hp.createSession();
+    // Always get a fresh session. Cached activeSessionId may be stale
+    // after reconnect or backend restart.
+    var sessionId = '';
+    try {
+      final storedId = await hp.resumeMostRecentSession();
+      if (storedId.isNotEmpty) {
+        sessionId = await hp.resumeSession(storedId);
       }
+    } catch (_) {
+      // ignore — createSession below
+    }
+    if (sessionId.isEmpty) {
+      sessionId = await hp.createSession();
     }
 
     // Build attachments
