@@ -346,7 +346,7 @@ class _AddBackendSheetState extends State<AddBackendSheet>
     String? errMsg;
     try {
       final resp = await http
-          .get(Uri.parse(probeUrl), headers: const {'Accept': 'text/html'})
+          .get(Uri.parse(probeUrl), headers: {'Accept': 'text/html'})
           .timeout(const Duration(seconds: 5));
       if (resp.statusCode != 200) {
         errMsg = 'HTTP ${resp.statusCode} from $probeUrl';
@@ -639,7 +639,7 @@ class _LanDiscoveryTabState extends State<_LanDiscoveryTab> {
   HermesBackendDiscovery? _discovery;
   List<DiscoveredHermesBackend> _found = [];
   StreamSubscription<List<DiscoveredHermesBackend>>? _subscription;
-  bool _isScanning = false;  // Local state for immediate UI feedback
+  bool _isScanning = false; // Local state for immediate UI feedback
 
   @override
   void dispose() {
@@ -654,13 +654,13 @@ class _LanDiscoveryTabState extends State<_LanDiscoveryTab> {
       _isScanning = true;
       _found = [];
     });
-    
+
     _discovery = HermesBackendDiscovery();
     _subscription?.cancel();
     _subscription = _discovery!.discovered.listen((backends) {
       if (mounted) setState(() => _found = backends);
     });
-    
+
     try {
       await _discovery!.startScan();
     } catch (e) {
@@ -768,7 +768,10 @@ class _LanDiscoveryTabState extends State<_LanDiscoveryTab> {
               children: [
                 IosCardPress(
                   onTap: _stopScan,
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 12,
+                  ),
                   baseColor: Theme.of(context).colorScheme.errorContainer,
                   borderRadius: BorderRadius.circular(10),
                   child: Text(
@@ -782,7 +785,10 @@ class _LanDiscoveryTabState extends State<_LanDiscoveryTab> {
                 const SizedBox(width: 12),
                 IosCardPress(
                   onTap: _startScan,
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 12,
+                  ),
                   baseColor: Theme.of(context).colorScheme.secondaryContainer,
                   borderRadius: BorderRadius.circular(10),
                   child: Text(
@@ -815,9 +821,10 @@ class _LanDiscoveryTabState extends State<_LanDiscoveryTab> {
                           const SizedBox(height: 12),
                           Text(
                             widget.l10n.lanDiscoveryNone,
-                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: Theme.of(context).colorScheme.outline,
-                            ),
+                            style: Theme.of(context).textTheme.bodyMedium
+                                ?.copyWith(
+                                  color: Theme.of(context).colorScheme.outline,
+                                ),
                             textAlign: TextAlign.center,
                           ),
                         ],
@@ -842,21 +849,26 @@ class _LanDiscoveryTabState extends State<_LanDiscoveryTab> {
                                 const SizedBox(width: 12),
                                 Expanded(
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       Text(
                                         b.name,
-                                        style: Theme.of(context).textTheme.titleSmall,
+                                        style: Theme.of(
+                                          context,
+                                        ).textTheme.titleSmall,
                                       ),
                                       Text(
                                         b.url,
-                                        style: Theme.of(context).textTheme.bodySmall
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .bodySmall
                                             ?.copyWith(
-                                          color: Theme.of(
-                                            context,
-                                          ).colorScheme.outline,
-                                          fontFamily: 'monospace',
-                                        ),
+                                              color: Theme.of(
+                                                context,
+                                              ).colorScheme.outline,
+                                              fontFamily: 'monospace',
+                                            ),
                                       ),
                                     ],
                                   ),
@@ -875,7 +887,10 @@ class _LanDiscoveryTabState extends State<_LanDiscoveryTab> {
               children: [
                 IosCardPress(
                   onTap: _startScan,
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 12,
+                  ),
                   baseColor: Theme.of(context).colorScheme.secondaryContainer,
                   borderRadius: BorderRadius.circular(10),
                   child: Text(
@@ -889,8 +904,13 @@ class _LanDiscoveryTabState extends State<_LanDiscoveryTab> {
                 const SizedBox(width: 12),
                 IosCardPress(
                   onTap: _resetScan,
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                  baseColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 12,
+                  ),
+                  baseColor: Theme.of(
+                    context,
+                  ).colorScheme.surfaceContainerHighest,
                   borderRadius: BorderRadius.circular(10),
                   child: Text(
                     widget.l10n.lanDiscoveryBack,
