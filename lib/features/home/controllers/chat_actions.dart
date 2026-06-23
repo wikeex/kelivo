@@ -462,6 +462,20 @@ class ChatActions {
         .read<AssistantProvider>()
         .currentAssistant;
     final assistantId = assistant?.id;
+
+    // ── Hermes early path ─────────────────────────────────────────────
+    // When Hermes backend is connected, model selection is managed by the
+    // backend — Kelivo does not need to resolve a local provider/model.
+    final hp = hermesProvider;
+    if (hp != null && hp.state == HermesConnectionState.ready) {
+      return _sendViaHermes(
+        input: input,
+        conversation: conversation,
+        hp: hp,
+        settings: settings,
+      );
+    }
+
     // Capture approval service reference before async gap
     ToolApprovalService? approvalService;
     AskUserInteractionService? askUserService;
@@ -601,6 +615,139 @@ class ChatActions {
       onFileProcessingFinished?.call();
       return ChatActionResult.error(e.toString());
     }
+  }
+
+  /// Send a message via Hermes JSON-RPC, bypassing local model/provider config.
+  Future<ChatActionResult> _sendViaHermes({
+    required ChatInputData input,
+    required Conversation conversation,
+    required HermesGatewayProvider hp,
+    required SettingsProvider settings,
+  }) async {
+    final content = input.text.trim();
+
+    // Create user message
+    final userMessage = await messageGenerationService.createUserMessage(
+      conversationId: conversation.id,
+      input: input,
+      assistant: null,
+    );
+    if (chatController.appendPersistedTailMessage(userMessage)) {
+      viewModel.restoreMessageUiState();
+    }
+    onMessagesChanged?.call();
+
+    _setConversationLoading(conversation.id, true);
+
+    // Use placeholder provider/model — Hermes backend manages these
+    const hermesProviderKey = 'hermes';
+    const hermesModelId = 'hermes';
+
+    // Create assistant message placeholder
+    final assistantMessage = await messageGenerationService
+        .createAssistantPlaceholder(
+          conversationId: conversation.id,
+          modelId: hermesModelId,
+          providerKey: hermesProviderKey,
+        );
+
+    streamController.markStreamingStarted(assistantMessage.id);
+
+    if (chatController.appendPersistedTailMessage(assistantMessage)) {
+      viewModel.restoreMessageUiState();
+    }
+    onMessagesChanged?.call();
+
+    // Send via Hermes
+    try {
+      await _executeHermesSend(
+        hp: hp,
+        assistantMessage: assistantMessage,
+        prompt: content,
+        userImagePaths: input.imagePaths,
+      );
+      return ChatActionResult.success(assistantMessage);
+    } catch (e) {
+      return ChatActionResult.error(e.toString());
+    }
+  }
+
+  /// Execute Hermes prompt submit: ensure session, create adapter, stream.
+  Future<void> _executeHermesSend({
+    required HermesGatewayProvider hp,
+    required ChatMessage assistantMessage,
+    required String prompt,
+    required List<String> userImagePaths,
+  }) async {
+    final conversationId = assistantMessage.conversationId;
+
+    // Ensure a Hermes session exists
+    var sessionId = hp.activeSessionId;
+    if (sessionId == null || sessionId.isEmpty) {
+      try {
+        sessionId = await hp.resumeMostRecentSession();
+      } catch (_) {
+        sessionId = await hp.createSession();
+      }
+    }
+
+    // Build attachments
+    final attachments = <Map<String, dynamic>>[];
+    for (final path in userImagePaths) {
+      if (path.startsWith('http://') || path.startsWith('https://')) {
+        attachments.add({'type': 'image_url', 'url': path});
+      } else {
+        attachments.add({'type': 'file', 'path': path});
+      }
+    }
+
+    // Create adapter and start listening
+    final adapter = HermesChatAdapter(
+      eventBus: hp.eventBus,
+      sessionId: sessionId,
+    );
+
+    // Build minimal state for stream chunk handlers.
+    // Hermes backend manages provider/model — local config is unused.
+    final streamControllerState = stream_ctrl.StreamingState(
+      stream_ctrl.GenerationContext(
+        assistantMessage: assistantMessage,
+        apiMessages: [
+          {'role': 'user', 'content': prompt},
+        ],
+        userImagePaths: userImagePaths,
+        allowImagesApiRouting: true,
+        providerKey: 'hermes',
+        modelId: 'hermes',
+        assistant: null,
+        settings: contextProvider.read<SettingsProvider>(),
+        config: contextProvider.read<SettingsProvider>().getProviderConfig(
+          'hermes',
+        ),
+        toolDefs: const [],
+        supportsReasoning: false,
+        enableReasoning: false,
+        streamOutput: true,
+      ),
+    );
+
+    await _conversationStreams[conversationId]?.cancel();
+    final sub = listenSequentiallyToStream<ChatStreamChunk>(
+      stream: adapter.chunkStream,
+      onData: (chunk) => _handleStreamChunk(chunk, streamControllerState),
+      onError: (error, stackTrace) =>
+          _handleStreamError(error, streamControllerState),
+      onDone: () => _handleStreamDone(streamControllerState),
+    );
+    _conversationStreams[conversationId] = sub;
+
+    // Submit prompt
+    await hp.gateway.promptSubmit(
+      sessionId: sessionId,
+      prompt: prompt,
+      attachments: attachments.isEmpty ? null : attachments,
+      options: {'stream': true},
+    );
   }
 
   // ============================================================================

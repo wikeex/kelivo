@@ -49,7 +49,6 @@ class HermesRpcException implements Exception {
 /// - Heartbeat ping (every 25s, disconnect after 30s silence)
 class HermesGateway {
   final HermesEventBus _eventBus;
-  HermesConfig _config;
 
   WebSocketChannel? _ws;
   StreamSubscription? _wsSub;
@@ -59,7 +58,6 @@ class HermesGateway {
 
   HermesConnectionState _state = HermesConnectionState.disconnected;
   HermesBackendBox? _currentBackend;
-  HermesAuth? _currentAuth;
   HermesRestClient? _restClient;
 
   /// REST client for non-WebSocket API calls (e.g. session export, billing).
@@ -74,8 +72,7 @@ class HermesGateway {
   HermesGateway({
     required HermesEventBus eventBus,
     required HermesConfig config,
-  }) : _eventBus = eventBus,
-       _config = config;
+  }) : _eventBus = eventBus;
 
   HermesConnectionState get state => _state;
   HermesBackendBox? get currentBackend => _currentBackend;
@@ -162,7 +159,6 @@ class HermesGateway {
   }
 
   Future<void> _wsConnect(HermesBackendBox backend, HermesAuth auth) async {
-    _currentAuth = auth;
     _restClient = HermesRestClient(auth: auth, baseUrl: _restBase(backend.url));
     _state = HermesConnectionState.authenticating;
 

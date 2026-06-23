@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:Kelivo/hermes/hermes_auth.dart';
@@ -6,7 +5,6 @@ import 'package:Kelivo/hermes/hermes_config.dart';
 import 'package:Kelivo/hermes/hermes_event_bus.dart';
 import 'package:Kelivo/hermes/hermes_gateway.dart';
 import 'package:Kelivo/hermes/hermes_models.dart';
-import 'package:uuid/uuid.dart';
 
 void main() {
   group('HermesAuth', () {
