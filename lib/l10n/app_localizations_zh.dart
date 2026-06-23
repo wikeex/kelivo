@@ -5423,6 +5423,18 @@ class AppLocalizationsZh extends AppLocalizations {
   String get connectionGateFailed => '连接失败';
 
   @override
+  String get connectionGateFailedTimeout => '连接超时，请检查服务器是否可达';
+
+  @override
+  String get connectionGateFailedNetwork => '无法连接到服务器，请检查网络连接后重试';
+
+  @override
+  String get connectionGateFailedAuth => '认证失败，请检查 Token 是否正确';
+
+  @override
+  String get connectionGateFailedServer => '服务器错误，请稍后重试';
+
+  @override
   String get connectionGateNoBackend => '未配置后端';
 
   @override
@@ -5665,6 +5677,84 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get hermesTerminalThemeLight => '浅色';
+
+  @override
+  String get hermesBillingTitle => '积分与账单';
+
+  @override
+  String get hermesBillingCredits => '积分';
+
+  @override
+  String get hermesBillingCreditsRemaining => '剩余积分';
+
+  @override
+  String get hermesBillingPurchase => '购买积分';
+
+  @override
+  String get hermesBillingAutoReload => '自动充值';
+
+  @override
+  String get hermesBillingAutoReloadOn => '开启';
+
+  @override
+  String get hermesBillingAutoReloadOff => '关闭';
+
+  @override
+  String get hermesBillingThreshold => '余额低于时自动充值';
+
+  @override
+  String get hermesBillingPackages => '可用套餐';
+
+  @override
+  String get hermesBillingCharge => '购买';
+
+  @override
+  String get hermesBillingChargePending => '处理中…';
+
+  @override
+  String get hermesBillingChargeSuccess => '购买成功';
+
+  @override
+  String get hermesBillingChargeFailed => '购买失败';
+
+  @override
+  String get hermesBillingClose => '关闭';
+
+  @override
+  String get hermesBillingEmpty => '暂无可用套餐';
+
+  @override
+  String get hermesSessionExport => '导出';
+
+  @override
+  String get hermesSessionExportMarkdown => '导出为 Markdown';
+
+  @override
+  String get hermesSessionExportText => '导出为文本';
+
+  @override
+  String get hermesSessionExporting => '导出中…';
+
+  @override
+  String get hermesSessionExportSuccess => '会话已导出';
+
+  @override
+  String get hermesSessionExportFailed => '导出失败';
+
+  @override
+  String get lanDiscoveryStartScan => '开始扫描';
+
+  @override
+  String get lanDiscoveryScanning => '正在扫描网络…';
+
+  @override
+  String get lanDiscoveryStop => '停止';
+
+  @override
+  String get lanDiscoveryRescan => '重新扫描';
+
+  @override
+  String get lanDiscoveryBack => '返回';
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hans`).
@@ -11086,6 +11176,18 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get connectionGateFailed => '连接失败';
 
   @override
+  String get connectionGateFailedTimeout => '连接超时，请检查服务器是否可达';
+
+  @override
+  String get connectionGateFailedNetwork => '无法连接到服务器，请检查网络连接后重试';
+
+  @override
+  String get connectionGateFailedAuth => '认证失败，请检查 Token 是否正确';
+
+  @override
+  String get connectionGateFailedServer => '服务器错误，请稍后重试';
+
+  @override
   String get connectionGateNoBackend => '未配置后端';
 
   @override
@@ -11328,6 +11430,84 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get hermesTerminalThemeLight => '浅色';
+
+  @override
+  String get hermesBillingTitle => '积分与账单';
+
+  @override
+  String get hermesBillingCredits => '积分';
+
+  @override
+  String get hermesBillingCreditsRemaining => '剩余积分';
+
+  @override
+  String get hermesBillingPurchase => '购买积分';
+
+  @override
+  String get hermesBillingAutoReload => '自动充值';
+
+  @override
+  String get hermesBillingAutoReloadOn => '开启';
+
+  @override
+  String get hermesBillingAutoReloadOff => '关闭';
+
+  @override
+  String get hermesBillingThreshold => '余额低于时自动充值';
+
+  @override
+  String get hermesBillingPackages => '可用套餐';
+
+  @override
+  String get hermesBillingCharge => '购买';
+
+  @override
+  String get hermesBillingChargePending => '处理中…';
+
+  @override
+  String get hermesBillingChargeSuccess => '购买成功';
+
+  @override
+  String get hermesBillingChargeFailed => '购买失败';
+
+  @override
+  String get hermesBillingClose => '关闭';
+
+  @override
+  String get hermesBillingEmpty => '暂无可用套餐';
+
+  @override
+  String get hermesSessionExport => '导出';
+
+  @override
+  String get hermesSessionExportMarkdown => '导出为 Markdown';
+
+  @override
+  String get hermesSessionExportText => '导出为文本';
+
+  @override
+  String get hermesSessionExporting => '导出中…';
+
+  @override
+  String get hermesSessionExportSuccess => '会话已导出';
+
+  @override
+  String get hermesSessionExportFailed => '导出失败';
+
+  @override
+  String get lanDiscoveryStartScan => '开始扫描';
+
+  @override
+  String get lanDiscoveryScanning => '正在扫描网络…';
+
+  @override
+  String get lanDiscoveryStop => '停止';
+
+  @override
+  String get lanDiscoveryRescan => '重新扫描';
+
+  @override
+  String get lanDiscoveryBack => '返回';
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hant`).
@@ -16749,6 +16929,18 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get connectionGateFailed => '連線失敗';
 
   @override
+  String get connectionGateFailedTimeout => '連線逾時，請檢查伺服器是否可達';
+
+  @override
+  String get connectionGateFailedNetwork => '無法連線到伺服器，請檢查網路連線後重試';
+
+  @override
+  String get connectionGateFailedAuth => '認證失敗，請檢查 Token 是否正確';
+
+  @override
+  String get connectionGateFailedServer => '伺服器錯誤，請稍後重試';
+
+  @override
   String get connectionGateNoBackend => '未配置後端';
 
   @override
@@ -16991,4 +17183,82 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get hermesTerminalThemeLight => '淺色';
+
+  @override
+  String get hermesBillingTitle => '積分與帳單';
+
+  @override
+  String get hermesBillingCredits => '積分';
+
+  @override
+  String get hermesBillingCreditsRemaining => '剩餘積分';
+
+  @override
+  String get hermesBillingPurchase => '購買積分';
+
+  @override
+  String get hermesBillingAutoReload => '自動儲值';
+
+  @override
+  String get hermesBillingAutoReloadOn => '開啟';
+
+  @override
+  String get hermesBillingAutoReloadOff => '關閉';
+
+  @override
+  String get hermesBillingThreshold => '餘額低於時自動儲值';
+
+  @override
+  String get hermesBillingPackages => '可用套餐';
+
+  @override
+  String get hermesBillingCharge => '購買';
+
+  @override
+  String get hermesBillingChargePending => '處理中…';
+
+  @override
+  String get hermesBillingChargeSuccess => '購買成功';
+
+  @override
+  String get hermesBillingChargeFailed => '購買失敗';
+
+  @override
+  String get hermesBillingClose => '關閉';
+
+  @override
+  String get hermesBillingEmpty => '暫無可用套餐';
+
+  @override
+  String get hermesSessionExport => '導出';
+
+  @override
+  String get hermesSessionExportMarkdown => '導出為 Markdown';
+
+  @override
+  String get hermesSessionExportText => '導出為文字';
+
+  @override
+  String get hermesSessionExporting => '導出中…';
+
+  @override
+  String get hermesSessionExportSuccess => '對話已導出';
+
+  @override
+  String get hermesSessionExportFailed => '導出失敗';
+
+  @override
+  String get lanDiscoveryStartScan => '開始掃描';
+
+  @override
+  String get lanDiscoveryScanning => '正在掃描網絡…';
+
+  @override
+  String get lanDiscoveryStop => '停止';
+
+  @override
+  String get lanDiscoveryRescan => '重新掃描';
+
+  @override
+  String get lanDiscoveryBack => '返回';
 }

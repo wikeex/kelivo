@@ -5640,6 +5640,22 @@ class AppLocalizationsEn extends AppLocalizations {
   String get connectionGateFailed => 'Connection Failed';
 
   @override
+  String get connectionGateFailedTimeout =>
+      'Connection timed out. Please check if the server is reachable.';
+
+  @override
+  String get connectionGateFailedNetwork =>
+      'Unable to reach the server. Please check your network connection.';
+
+  @override
+  String get connectionGateFailedAuth =>
+      'Authentication failed. Please check your token.';
+
+  @override
+  String get connectionGateFailedServer =>
+      'Server error. Please try again later.';
+
+  @override
   String get connectionGateNoBackend => 'No Backend Configured';
 
   @override
@@ -5886,4 +5902,82 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get hermesTerminalThemeLight => 'Light';
+
+  @override
+  String get hermesBillingTitle => 'Credits & Billing';
+
+  @override
+  String get hermesBillingCredits => 'Credits';
+
+  @override
+  String get hermesBillingCreditsRemaining => 'Credits Remaining';
+
+  @override
+  String get hermesBillingPurchase => 'Purchase Credits';
+
+  @override
+  String get hermesBillingAutoReload => 'Auto-reload';
+
+  @override
+  String get hermesBillingAutoReloadOn => 'On';
+
+  @override
+  String get hermesBillingAutoReloadOff => 'Off';
+
+  @override
+  String get hermesBillingThreshold => 'Reload when below';
+
+  @override
+  String get hermesBillingPackages => 'Available Packages';
+
+  @override
+  String get hermesBillingCharge => 'Buy';
+
+  @override
+  String get hermesBillingChargePending => 'Processing…';
+
+  @override
+  String get hermesBillingChargeSuccess => 'Purchase successful';
+
+  @override
+  String get hermesBillingChargeFailed => 'Purchase failed';
+
+  @override
+  String get hermesBillingClose => 'Close';
+
+  @override
+  String get hermesBillingEmpty => 'No packages available';
+
+  @override
+  String get hermesSessionExport => 'Export';
+
+  @override
+  String get hermesSessionExportMarkdown => 'Export as Markdown';
+
+  @override
+  String get hermesSessionExportText => 'Export as Text';
+
+  @override
+  String get hermesSessionExporting => 'Exporting…';
+
+  @override
+  String get hermesSessionExportSuccess => 'Session exported';
+
+  @override
+  String get hermesSessionExportFailed => 'Export failed';
+
+  @override
+  String get lanDiscoveryStartScan => 'Start Scan';
+
+  @override
+  String get lanDiscoveryScanning => 'Scanning network…';
+
+  @override
+  String get lanDiscoveryStop => 'Stop';
+
+  @override
+  String get lanDiscoveryRescan => 'Rescan';
+
+  @override
+  String get lanDiscoveryBack => 'Back';
 }

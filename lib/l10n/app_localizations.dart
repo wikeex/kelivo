@@ -10388,6 +10388,30 @@ abstract class AppLocalizations {
   /// **'Connection Failed'**
   String get connectionGateFailed;
 
+  /// No description provided for @connectionGateFailedTimeout.
+  ///
+  /// In en, this message translates to:
+  /// **'Connection timed out. Please check if the server is reachable.'**
+  String get connectionGateFailedTimeout;
+
+  /// No description provided for @connectionGateFailedNetwork.
+  ///
+  /// In en, this message translates to:
+  /// **'Unable to reach the server. Please check your network connection.'**
+  String get connectionGateFailedNetwork;
+
+  /// No description provided for @connectionGateFailedAuth.
+  ///
+  /// In en, this message translates to:
+  /// **'Authentication failed. Please check your token.'**
+  String get connectionGateFailedAuth;
+
+  /// No description provided for @connectionGateFailedServer.
+  ///
+  /// In en, this message translates to:
+  /// **'Server error. Please try again later.'**
+  String get connectionGateFailedServer;
+
   /// No description provided for @connectionGateNoBackend.
   ///
   /// In en, this message translates to:
@@ -10855,6 +10879,162 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Light'**
   String get hermesTerminalThemeLight;
+
+  /// No description provided for @hermesBillingTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Credits & Billing'**
+  String get hermesBillingTitle;
+
+  /// No description provided for @hermesBillingCredits.
+  ///
+  /// In en, this message translates to:
+  /// **'Credits'**
+  String get hermesBillingCredits;
+
+  /// No description provided for @hermesBillingCreditsRemaining.
+  ///
+  /// In en, this message translates to:
+  /// **'Credits Remaining'**
+  String get hermesBillingCreditsRemaining;
+
+  /// No description provided for @hermesBillingPurchase.
+  ///
+  /// In en, this message translates to:
+  /// **'Purchase Credits'**
+  String get hermesBillingPurchase;
+
+  /// No description provided for @hermesBillingAutoReload.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto-reload'**
+  String get hermesBillingAutoReload;
+
+  /// No description provided for @hermesBillingAutoReloadOn.
+  ///
+  /// In en, this message translates to:
+  /// **'On'**
+  String get hermesBillingAutoReloadOn;
+
+  /// No description provided for @hermesBillingAutoReloadOff.
+  ///
+  /// In en, this message translates to:
+  /// **'Off'**
+  String get hermesBillingAutoReloadOff;
+
+  /// No description provided for @hermesBillingThreshold.
+  ///
+  /// In en, this message translates to:
+  /// **'Reload when below'**
+  String get hermesBillingThreshold;
+
+  /// No description provided for @hermesBillingPackages.
+  ///
+  /// In en, this message translates to:
+  /// **'Available Packages'**
+  String get hermesBillingPackages;
+
+  /// No description provided for @hermesBillingCharge.
+  ///
+  /// In en, this message translates to:
+  /// **'Buy'**
+  String get hermesBillingCharge;
+
+  /// No description provided for @hermesBillingChargePending.
+  ///
+  /// In en, this message translates to:
+  /// **'Processing…'**
+  String get hermesBillingChargePending;
+
+  /// No description provided for @hermesBillingChargeSuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Purchase successful'**
+  String get hermesBillingChargeSuccess;
+
+  /// No description provided for @hermesBillingChargeFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Purchase failed'**
+  String get hermesBillingChargeFailed;
+
+  /// No description provided for @hermesBillingClose.
+  ///
+  /// In en, this message translates to:
+  /// **'Close'**
+  String get hermesBillingClose;
+
+  /// No description provided for @hermesBillingEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No packages available'**
+  String get hermesBillingEmpty;
+
+  /// No description provided for @hermesSessionExport.
+  ///
+  /// In en, this message translates to:
+  /// **'Export'**
+  String get hermesSessionExport;
+
+  /// No description provided for @hermesSessionExportMarkdown.
+  ///
+  /// In en, this message translates to:
+  /// **'Export as Markdown'**
+  String get hermesSessionExportMarkdown;
+
+  /// No description provided for @hermesSessionExportText.
+  ///
+  /// In en, this message translates to:
+  /// **'Export as Text'**
+  String get hermesSessionExportText;
+
+  /// No description provided for @hermesSessionExporting.
+  ///
+  /// In en, this message translates to:
+  /// **'Exporting…'**
+  String get hermesSessionExporting;
+
+  /// No description provided for @hermesSessionExportSuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Session exported'**
+  String get hermesSessionExportSuccess;
+
+  /// No description provided for @hermesSessionExportFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Export failed'**
+  String get hermesSessionExportFailed;
+
+  /// No description provided for @lanDiscoveryStartScan.
+  ///
+  /// In en, this message translates to:
+  /// **'Start Scan'**
+  String get lanDiscoveryStartScan;
+
+  /// No description provided for @lanDiscoveryScanning.
+  ///
+  /// In en, this message translates to:
+  /// **'Scanning network…'**
+  String get lanDiscoveryScanning;
+
+  /// No description provided for @lanDiscoveryStop.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop'**
+  String get lanDiscoveryStop;
+
+  /// No description provided for @lanDiscoveryRescan.
+  ///
+  /// In en, this message translates to:
+  /// **'Rescan'**
+  String get lanDiscoveryRescan;
+
+  /// No description provided for @lanDiscoveryBack.
+  ///
+  /// In en, this message translates to:
+  /// **'Back'**
+  String get lanDiscoveryBack;
 }
 
 class _AppLocalizationsDelegate

@@ -89,6 +89,9 @@ class HermesPendingRequest {
   HermesPendingRequest({required this.sessionId, required this.event});
 }
 
+/// Error classification for friendly display.
+enum HermesConnectionErrorKind { timeout, network, auth, server, unknown }
+
 /// Top-level provider that owns the [HermesGateway] singleton.
 ///
 /// Wraps [HermesGateway] as a Flutter [ChangeNotifier] so the UI can
@@ -101,6 +104,7 @@ class HermesGatewayProvider extends ChangeNotifier {
   HermesConnectionState _state = HermesConnectionState.initializing;
   HermesBackendBox? _currentBackend;
   String? _lastError;
+  HermesConnectionErrorKind _lastErrorKind = HermesConnectionErrorKind.unknown;
 
   /// Active Hermes session ID (null when not connected).
   String? _activeSessionId;
@@ -213,14 +217,21 @@ class HermesGatewayProvider extends ChangeNotifier {
   HermesConfig get config => _config;
   HermesRestClient? get restClient => _gateway.restClient;
   String? get lastError => _lastError;
+  HermesConnectionErrorKind get lastErrorKind => _lastErrorKind;
 
   /// Initialize Hive config and load persisted backends.
   Future<void> init() async {
     await _config.init();
-    // Auto-connect to last active backend if any
+    // Auto-connect to last active backend if any. When no backend has been
+    // configured yet, transition out of `initializing` so that
+    // `ConnectionGate` can render the "no backend" empty state instead of
+    // being stuck on a perpetual connecting spinner.
     final active = _config.activeBackend;
     if (active != null) {
       await connectBackend(active.id);
+    } else {
+      _state = HermesConnectionState.disconnected;
+      notifyListeners();
     }
   }
 
@@ -246,15 +257,50 @@ class HermesGatewayProvider extends ChangeNotifier {
       _state = HermesConnectionState.ready;
     } on HermesAuthException catch (e) {
       _lastError = e.message;
+      _lastErrorKind = HermesConnectionErrorKind.auth;
       _state = HermesConnectionState.error;
       await _config.markError(backend.id, e.message);
     } catch (e) {
       _lastError = e.toString();
+      _lastErrorKind = _classifyError(e);
       _state = HermesConnectionState.error;
       await _config.markError(backend.id, e.toString());
     }
 
     notifyListeners();
+  }
+
+  HermesConnectionErrorKind _classifyError(Object e) {
+    final msg = e.toString().toLowerCase();
+    if (msg.contains('timeout') || msg.contains('timed out')) {
+      return HermesConnectionErrorKind.timeout;
+    }
+    if (msg.contains('socket') ||
+        msg.contains('connection') ||
+        msg.contains('network') ||
+        msg.contains('handshake') ||
+        msg.contains('websocket') ||
+        msg.contains('connection refused') ||
+        msg.contains('host unreachable') ||
+        msg.contains('no address') ||
+        msg.contains('lookup failed')) {
+      return HermesConnectionErrorKind.network;
+    }
+    if (msg.contains('auth') ||
+        msg.contains('token') ||
+        msg.contains('unauthorized') ||
+        msg.contains('forbidden') ||
+        msg.contains('401') ||
+        msg.contains('403')) {
+      return HermesConnectionErrorKind.auth;
+    }
+    if (msg.contains('500') ||
+        msg.contains('server error') ||
+        msg.contains('internal error') ||
+        msg.contains('statuscode: 5')) {
+      return HermesConnectionErrorKind.server;
+    }
+    return HermesConnectionErrorKind.unknown;
   }
 
   /// Disconnect from the current backend.
