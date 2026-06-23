@@ -109,6 +109,14 @@ class HermesGatewayProvider extends ChangeNotifier {
   /// Active Hermes session ID (null when not connected).
   String? _activeSessionId;
 
+  /// Stored ID of the session the user explicitly chose from the sidebar.
+  /// When set, [resumeMostRecentSession] returns this instead of querying the
+  /// backend for the most recent.
+  String? _activeSessionStoredId;
+
+  /// Maps Kelivo conversation IDs to Hermes stored session IDs.
+  final Map<String, String> _conversationHermesSessionIds = {};
+
   /// Pending interactive requests (approval, clarify, sudo, secret).
   final List<HermesPendingRequest> _pendingRequests = [];
 
@@ -259,6 +267,7 @@ class HermesGatewayProvider extends ChangeNotifier {
       await _config.markConnected(backend.id);
       _currentBackend = backend;
       _state = HermesConnectionState.ready;
+      await loadSessions(limit: 50);
     } on HermesAuthException catch (e) {
       _lastError = e.message;
       _lastErrorKind = HermesConnectionErrorKind.auth;
@@ -360,6 +369,32 @@ class HermesGatewayProvider extends ChangeNotifier {
 
   /// The currently active Hermes session ID.
   String? get activeSessionId => _activeSessionId;
+
+  /// Stored ID of the session the user explicitly chose from the sidebar.
+  String? get activeSessionStoredId => _activeSessionStoredId;
+
+  /// Pin a stored_id so the next send resumes this specific session.
+  void pinSession(String storedId) {
+    _activeSessionStoredId = storedId;
+  }
+
+  /// Remember which Hermes stored session backs a Kelivo conversation.
+  void linkConversationToHermesSession(
+    String conversationId,
+    String storedSessionId,
+  ) {
+    if (conversationId.isEmpty || storedSessionId.isEmpty) return;
+    _conversationHermesSessionIds[conversationId] = storedSessionId;
+    unawaited(
+      _config.putConversationSessionLink(conversationId, storedSessionId),
+    );
+  }
+
+  /// Hermes stored session linked to a Kelivo conversation, if any.
+  String? linkedHermesSessionId(String conversationId) {
+    return _conversationHermesSessionIds[conversationId] ??
+        _config.getConversationSessionLink(conversationId);
+  }
 
   /// Set the active session ID (called after session.create / session.resume).
   void setActiveSessionId(String? id) {

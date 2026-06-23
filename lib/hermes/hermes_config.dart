@@ -99,8 +99,10 @@ class HermesBackendBox extends HiveObject {
 /// Manages the list of Hermes backends persisted in Hive.
 class HermesConfig {
   static const String _boxName = 'hermes_backends';
+  static const String _linksBoxName = 'hermes_conversation_links';
 
   Box<HermesBackendBox>? _box;
+  Box<String>? _linksBox;
 
   Box<HermesBackendBox> get box {
     if (_box == null || !_box!.isOpen) {
@@ -117,6 +119,21 @@ class HermesConfig {
       Hive.registerAdapter(HermesBackendBoxAdapter());
     }
     _box = await Hive.openBox<HermesBackendBox>(_boxName);
+    _linksBox = await Hive.openBox<String>(_linksBoxName);
+  }
+
+  /// Persist Kelivo conversation → Hermes stored session mapping.
+  Future<void> putConversationSessionLink(
+    String conversationId,
+    String storedSessionId,
+  ) async {
+    if (conversationId.isEmpty || storedSessionId.isEmpty) return;
+    await _linksBox?.put(conversationId, storedSessionId);
+  }
+
+  /// Read a persisted conversation → Hermes session link.
+  String? getConversationSessionLink(String conversationId) {
+    return _linksBox?.get(conversationId);
   }
 
   /// Whether a Hermes backend has been configured at all.
@@ -177,6 +194,7 @@ class HermesConfig {
 
   /// Close the Hive box.
   Future<void> close() async {
+    await _linksBox?.close();
     await _box?.close();
   }
 }

@@ -66,6 +66,8 @@ class HermesGateway {
   // Pending RPC futures keyed by request id.
   final _pending = <String, Completer<dynamic>>{};
 
+  Completer<void>? _gatewayReadyCompleter;
+
   // Latest received event time for heartbeat tracking.
   DateTime? _lastEventAt;
 
@@ -81,13 +83,25 @@ class HermesGateway {
   Future<void> connect(HermesBackendBox backend) async {
     _currentBackend = backend;
     _reconnectAttempt = 0;
-    await _doConnect(backend);
+    _gatewayReadyCompleter = Completer<void>();
+    try {
+      await _doConnect(backend);
+      await _gatewayReadyCompleter!.future.timeout(
+        const Duration(seconds: 30),
+        onTimeout: () =>
+            throw TimeoutException('Hermes gateway ready event timeout'),
+      );
+    } catch (e) {
+      _failGatewayReady(e);
+      rethrow;
+    }
   }
 
   /// Disconnect and stop all auto-reconnect attempts.
   Future<void> disconnect() async {
     _reconnectTimer?.cancel();
     _heartbeatTimer?.cancel();
+    _failGatewayReady(StateError('disconnected'));
     await _wsSub?.cancel();
     await _ws?.sink.close();
     _ws = null;
@@ -233,6 +247,7 @@ class HermesGateway {
             _state = HermesConnectionState.ready;
             _reconnectAttempt = 0;
             _startHeartbeat();
+            _completeGatewayReady();
           }
         }
       }
@@ -391,6 +406,7 @@ class HermesGateway {
   }
 
   void _onError(Object error) {
+    _failGatewayReady(error);
     _scheduleReconnect(_currentBackend!);
   }
 
@@ -447,6 +463,22 @@ class HermesGateway {
   String _restBase(String wsUrl) {
     // Strip /api/ws suffix if present
     return wsUrl.replaceAll(RegExp(r'/api/ws$'), '');
+  }
+
+  void _completeGatewayReady() {
+    final completer = _gatewayReadyCompleter;
+    if (completer != null && !completer.isCompleted) {
+      completer.complete();
+    }
+    _gatewayReadyCompleter = null;
+  }
+
+  void _failGatewayReady(Object error) {
+    final completer = _gatewayReadyCompleter;
+    if (completer != null && !completer.isCompleted) {
+      completer.completeError(error);
+    }
+    _gatewayReadyCompleter = null;
   }
 
   /// Dispose all resources.

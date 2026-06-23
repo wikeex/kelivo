@@ -889,7 +889,11 @@ class HomePageController extends ChangeNotifier {
     try {
       await _viewModel.flushCurrentConversationProgress();
     } catch (_) {}
-    if (currentConversation?.id == id) return;
+    if (currentConversation?.id == id) {
+      await _viewModel.switchConversation(id);
+      notifyListeners();
+      return;
+    }
     _exitUserMessageEdit(clearDraft: true);
     if (!isDesktopPlatform) {
       try {

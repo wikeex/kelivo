@@ -1,9 +1,25 @@
+import '../../core/models/chat_message.dart';
+import '../../core/services/chat/chat_service.dart';
 import '../../hermes/hermes_rpc.dart';
 import '../../hermes/hermes_stream_adapter.dart';
 import 'hermes_gateway_provider.dart';
 
 export '../../hermes/hermes_stream_adapter.dart'
     show HermesStreamChunk, HermesToolCall, HermesToolResult;
+
+/// Count user/assistant Hermes messages that would be imported.
+int countImportableHermesMessages(List<Map<String, dynamic>> raw) {
+  var count = 0;
+  for (final item in raw) {
+    final msg = HermesChatMessage.fromHermes(item);
+    if (msg.role == 'tool' || msg.role == 'system') continue;
+    final content = msg.content?.trim() ?? '';
+    final reasoning = msg.reasoning?.trim() ?? '';
+    if (content.isEmpty && reasoning.isEmpty) continue;
+    count++;
+  }
+  return count;
+}
 
 /// Chat-specific extensions for [HermesGatewayProvider].
 ///
@@ -73,6 +89,87 @@ extension HermesChatProviderX on HermesGatewayProvider {
       before: before,
     );
     return raw.map((m) => HermesChatMessage.fromHermes(m)).toList();
+  }
+
+  /// Import Hermes session history into a local Kelivo conversation.
+  Future<List<ChatMessage>> importSessionHistoryToConversation({
+    required String sessionId,
+    required String conversationId,
+    required ChatService chatService,
+    List<Map<String, dynamic>>? prefetchedMessages,
+    String? storedSessionId,
+  }) async {
+    final raw =
+        prefetchedMessages ??
+        await gateway.sessionHistory(sessionId);
+    return _importRawMessagesToConversation(
+      raw: raw,
+      sessionId: sessionId,
+      conversationId: conversationId,
+      chatService: chatService,
+      storedSessionId: storedSessionId,
+    );
+  }
+
+  /// Resume a stored Hermes session and import its history locally.
+  Future<List<ChatMessage>> resumeAndImportSessionToConversation({
+    required String storedSessionId,
+    required String conversationId,
+    required ChatService chatService,
+  }) async {
+    final resume = await gateway.sessionResumeDetailed(storedSessionId);
+    setActiveSessionId(resume.liveSessionId);
+    pinSession(resume.storedSessionId);
+
+    var raw = resume.messages;
+    if (raw.isEmpty && resume.liveSessionId.isNotEmpty) {
+      raw = await gateway.sessionHistory(resume.liveSessionId);
+    }
+
+    return _importRawMessagesToConversation(
+      raw: raw,
+      sessionId: resume.liveSessionId,
+      conversationId: conversationId,
+      chatService: chatService,
+      storedSessionId: resume.storedSessionId,
+    );
+  }
+
+  Future<List<ChatMessage>> _importRawMessagesToConversation({
+    required List<Map<String, dynamic>> raw,
+    required String sessionId,
+    required String conversationId,
+    required ChatService chatService,
+    String? storedSessionId,
+  }) async {
+    final history = raw.map((m) => HermesChatMessage.fromHermes(m)).toList();
+    final existing = chatService.getMessages(conversationId);
+    final existingKeys = <String>{
+      for (final m in existing) '${m.role}:${m.content.trim()}',
+    };
+    final imported = <ChatMessage>[];
+    for (final msg in history) {
+      if (msg.role == 'tool' || msg.role == 'system') continue;
+      final content = msg.content?.trim() ?? '';
+      final reasoning = msg.reasoning?.trim() ?? '';
+      if (content.isEmpty && reasoning.isEmpty) continue;
+      final role = msg.role == 'assistant' ? 'assistant' : 'user';
+      final key = '$role:$content';
+      if (existingKeys.contains(key)) continue;
+      existingKeys.add(key);
+      final chatMsg = await chatService.addMessage(
+        conversationId: conversationId,
+        role: role,
+        content: content,
+        reasoningText: reasoning.isEmpty ? null : reasoning,
+      );
+      imported.add(chatMsg);
+    }
+    chatService.dropMessagesCache(conversationId);
+    if (storedSessionId != null && storedSessionId.isNotEmpty) {
+      linkConversationToHermesSession(conversationId, storedSessionId);
+    }
+    return imported;
   }
 
   /// Get session usage stats.
@@ -147,8 +244,10 @@ class HermesChatMessage {
     return HermesChatMessage(
       id: json['id']?.toString() ?? '',
       role: json['role']?.toString() ?? 'user',
-      content: json['content']?.toString(),
-      reasoning: json['reasoning']?.toString(),
+      content: json['content']?.toString() ?? json['text']?.toString(),
+      reasoning:
+          json['reasoning']?.toString() ??
+          json['reasoning_content']?.toString(),
       createdAt: json['created_at'] != null
           ? DateTime.tryParse(json['created_at'].toString())
           : null,

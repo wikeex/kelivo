@@ -22,22 +22,27 @@ void main() {
       adapter.dispose();
     });
 
-    test('accumulates text across multiple MessageDelta events', () async {
-      final bus = HermesEventBus();
-      final adapter = HermesChatAdapter(eventBus: bus, sessionId: 's1');
-      final chunks = <ChatStreamChunk>[];
+    test(
+      'emits delta text (not accumulated buffer) on MessageDelta events',
+      () async {
+        final bus = HermesEventBus();
+        final adapter = HermesChatAdapter(eventBus: bus, sessionId: 's1');
+        final chunks = <ChatStreamChunk>[];
 
-      adapter.chunkStream.listen(chunks.add);
+        adapter.chunkStream.listen(chunks.add);
 
-      bus.emit(MessageDelta(sessionId: 's1', text: 'Hello '));
-      bus.emit(MessageDelta(sessionId: 's1', text: 'world!'));
-      await Future.delayed(Duration.zero);
+        bus.emit(MessageDelta(sessionId: 's1', text: 'Hello '));
+        bus.emit(MessageDelta(sessionId: 's1', text: 'world!'));
+        await Future.delayed(Duration.zero);
 
-      expect(chunks.length, 2);
-      expect(chunks.last.content, 'Hello world!');
+        expect(chunks.length, 2);
+        // Each delta emits only the incremental text, not accumulated buffer
+        expect(chunks[0].content, 'Hello ');
+        expect(chunks[1].content, 'world!');
 
-      adapter.dispose();
-    });
+        adapter.dispose();
+      },
+    );
 
     test('parses MessageComplete and sets isDone', () async {
       final bus = HermesEventBus();

@@ -6,6 +6,7 @@ import '../../../core/models/chat_message.dart';
 import '../../../core/models/conversation.dart';
 import '../../../core/models/token_usage.dart';
 import '../../../core/providers/assistant_provider.dart';
+import '../../../core/providers/hermes_chat_provider.dart';
 import '../../../core/providers/hermes_gateway_provider.dart';
 import '../../../core/providers/settings_provider.dart';
 import '../../../core/services/api/chat_api_service.dart';
@@ -628,6 +629,11 @@ class ChatActions {
   }) async {
     final content = input.text.trim();
 
+    final liveSessionId = await _prepareHermesSessionForSend(
+      hp: hp,
+      conversationId: conversation.id,
+    );
+
     // Create user message
     final userMessage = await messageGenerationService.createUserMessage(
       conversationId: conversation.id,
@@ -668,6 +674,7 @@ class ChatActions {
         prompt: content,
         userImagePaths: input.imagePaths,
         settings: settings,
+        liveSessionId: liveSessionId,
       );
       return ChatActionResult.success(assistantMessage);
     } catch (e) {
@@ -682,22 +689,16 @@ class ChatActions {
     required String prompt,
     required List<String> userImagePaths,
     required SettingsProvider settings,
+    String? liveSessionId,
   }) async {
     final conversationId = assistantMessage.conversationId;
 
-    // Always get a fresh session. Cached activeSessionId may be stale
-    // after reconnect or backend restart.
-    var sessionId = '';
-    try {
-      final storedId = await hp.resumeMostRecentSession();
-      if (storedId.isNotEmpty) {
-        sessionId = await hp.resumeSession(storedId);
-      }
-    } catch (_) {
-      // ignore — createSession below
-    }
+    var sessionId = liveSessionId ?? hp.activeSessionId ?? '';
     if (sessionId.isEmpty) {
-      sessionId = await hp.createSession();
+      sessionId = await _prepareHermesSessionForSend(
+        hp: hp,
+        conversationId: conversationId,
+      );
     }
 
     // Build attachments
@@ -744,7 +745,8 @@ class ChatActions {
       onData: (chunk) => _handleStreamChunk(chunk, streamControllerState),
       onError: (error, stackTrace) =>
           _handleStreamError(error, streamControllerState),
-      onDone: () => _handleStreamDone(streamControllerState),
+      onDone: () =>
+          _onHermesStreamDone(streamControllerState, prompt, sessionId, hp),
     );
     _conversationStreams[conversationId] = sub;
 
@@ -755,6 +757,110 @@ class ChatActions {
       attachments: attachments.isEmpty ? null : attachments,
       options: {'stream': true},
     );
+  }
+
+  /// Acquire a live Hermes session and import history before the first send.
+  Future<String> _prepareHermesSessionForSend({
+    required HermesGatewayProvider hp,
+    required String conversationId,
+  }) async {
+    HermesResumeResult? resume;
+    final pinned =
+        hp.activeSessionStoredId ?? hp.linkedHermesSessionId(conversationId);
+
+    if (pinned != null && pinned.isNotEmpty) {
+      try {
+        resume = await hp.gateway.sessionResumeDetailed(pinned);
+      } catch (_) {}
+    }
+
+    if (resume == null) {
+      try {
+        final storedId = await hp.gateway.sessionMostRecent();
+        if (storedId.isNotEmpty) {
+          resume = await hp.gateway.sessionResumeDetailed(storedId);
+        }
+      } catch (_) {}
+    }
+
+    if (resume == null || resume.liveSessionId.isEmpty) {
+      final created = await hp.createSession();
+      return created;
+    }
+
+    hp.setActiveSessionId(resume.liveSessionId);
+    hp.pinSession(resume.storedSessionId);
+    hp.linkConversationToHermesSession(conversationId, resume.storedSessionId);
+
+    var raw = resume.messages;
+    if (raw.isEmpty && resume.liveSessionId.isNotEmpty) {
+      try {
+        raw = await hp.gateway.sessionHistory(resume.liveSessionId);
+      } catch (_) {
+        raw = const [];
+      }
+    }
+    final hermesImportable = countImportableHermesMessages(raw);
+
+    final dbCount = chatService.getMessageCount(conversationId);
+    final uiCount = chatController.currentConversation?.id == conversationId
+        ? chatController.messages.length
+        : 0;
+
+    if (dbCount > uiCount) {
+      await chatController.switchConversation(conversationId);
+      onMessagesChanged?.call();
+    }
+
+    if (hermesImportable > dbCount) {
+      try {
+        final imported = await hp.importSessionHistoryToConversation(
+          sessionId: resume.liveSessionId,
+          conversationId: conversationId,
+          chatService: chatService,
+          prefetchedMessages: raw.isNotEmpty ? raw : null,
+          storedSessionId: resume.storedSessionId,
+        );
+        if (imported.isNotEmpty) {
+          await chatController.switchConversation(conversationId);
+          if (chatController.totalMessageCount >
+              chatController.messages.length) {
+            chatController.loadEndWindow();
+          }
+          onMessagesChanged?.call();
+        }
+      } catch (_) {}
+    }
+
+    return resume.liveSessionId;
+  }
+
+  /// Handle stream completion for Hermes sends — sync conversation title.
+  Future<void> _onHermesStreamDone(
+    stream_ctrl.StreamingState state,
+    String originalPrompt,
+    String sessionId,
+    HermesGatewayProvider hp,
+  ) async {
+    await _handleStreamDone(state);
+
+    // Set conversation title from first message if still using default
+    final conversationId = state.conversationId;
+    final conv = chatService.getConversation(conversationId);
+    if (conv == null) return;
+    if (conv.title.trim().isEmpty ||
+        conv.title == chatService.defaultConversationTitle) {
+      final title = originalPrompt.length > 50
+          ? '${originalPrompt.substring(0, 50)}…'
+          : originalPrompt;
+      await chatService.renameConversation(conversationId, title);
+      // Sync title to Hermes backend
+      try {
+        await hp.gateway.sessionTitle(sessionId, title);
+      } catch (_) {
+        // non-critical — backend may not support setting title
+      }
+    }
   }
 
   // ============================================================================
@@ -809,32 +915,41 @@ class ChatActions {
       return ChatActionResult.error('invalid_versioning');
     }
 
-    // Get model config
+    // Get model config — skip if Hermes backend handles model selection
     final assistantId = assistant?.id;
-    final modelConfig = messageGenerationService.getModelConfig(
-      settings,
-      assistant,
-    );
+    final hp = hermesProvider;
+    final String providerKey;
+    final String modelId;
+    if (hp != null && hp.hasAnyBackendConfigured) {
+      providerKey = 'hermes';
+      modelId = 'hermes';
+    } else {
+      final modelConfig = messageGenerationService.getModelConfig(
+        settings,
+        assistant,
+      );
 
-    if (modelConfig.providerKey == null || modelConfig.modelId == null) {
-      return ChatActionResult.noModel();
+      if (modelConfig.providerKey == null || modelConfig.modelId == null) {
+        return ChatActionResult.noModel();
+      }
+      providerKey = modelConfig.providerKey!;
+      modelId = modelConfig.modelId!;
     }
-    final providerKey = modelConfig.providerKey!;
-    final modelId = modelConfig.modelId!;
 
     final projectedMessages = ChatActions.projectMessagesForRegenerationContext(
       messages: completeMessages,
       lastKeep: versioning.lastKeep,
       targetGroupId: versioning.targetGroupId,
     );
-    if (_hasUnsupportedAudioAttachments(
-      messages: projectedMessages,
-      conversation: conversation,
-      settings: settings,
-      providerKey: providerKey,
-      modelId: modelId,
-      maxRawTruncateIndex: versioning.lastKeep,
-    )) {
+    if (!(hp != null && hp.hasAnyBackendConfigured) &&
+        _hasUnsupportedAudioAttachments(
+          messages: projectedMessages,
+          conversation: conversation,
+          settings: settings,
+          providerKey: providerKey,
+          modelId: modelId,
+          maxRawTruncateIndex: versioning.lastKeep,
+        )) {
       return ChatActionResult.error('audio_attachment_unsupported');
     }
 
@@ -981,15 +1096,23 @@ class ChatActions {
       return ChatActionResult.error('message_not_found');
     }
 
-    final modelConfig = messageGenerationService.getModelConfig(
-      settings,
-      assistant,
-    );
-    if (modelConfig.providerKey == null || modelConfig.modelId == null) {
-      return ChatActionResult.noModel();
+    final hp = hermesProvider;
+    final String providerKey;
+    final String modelId;
+    if (hp != null && hp.hasAnyBackendConfigured) {
+      providerKey = 'hermes';
+      modelId = 'hermes';
+    } else {
+      final modelConfig = messageGenerationService.getModelConfig(
+        settings,
+        assistant,
+      );
+      if (modelConfig.providerKey == null || modelConfig.modelId == null) {
+        return ChatActionResult.noModel();
+      }
+      providerKey = modelConfig.providerKey!;
+      modelId = modelConfig.modelId!;
     }
-    final providerKey = modelConfig.providerKey!;
-    final modelId = modelConfig.modelId!;
 
     final streamingMessage = _messages[visibleIndex].copyWith(
       isStreaming: true,
@@ -1232,17 +1355,10 @@ class ChatActions {
     stream_ctrl.StreamingState state,
   ) async {
     final conversationId = state.conversationId;
-
-    // Ensure a Hermes session exists
-    var sessionId = hp.activeSessionId;
-    if (sessionId == null || sessionId.isEmpty) {
-      // Try to resume most recent; if none, create new
-      try {
-        sessionId = await hp.resumeMostRecentSession();
-      } catch (_) {
-        sessionId = await hp.createSession();
-      }
-    }
+    final sessionId = await _prepareHermesSessionForSend(
+      hp: hp,
+      conversationId: conversationId,
+    );
 
     // Extract the latest user prompt from apiMessages
     String prompt = '';

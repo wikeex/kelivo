@@ -17,7 +17,14 @@ class MockGateway extends HermesGateway {
       case 'session.create':
         return {'session_id': 'sess-001'};
       case 'session.resume':
-        return {'session_id': params?['session_id'] ?? ''};
+        return {
+          'session_id': 'live-001',
+          'resumed': params?['session_id'] ?? '',
+          'messages': [
+            {'role': 'user', 'text': 'Hi'},
+            {'role': 'assistant', 'text': 'Hello'},
+          ],
+        };
       case 'session.most_recent':
         return {'session_id': 'sess-recent'};
       case 'session.list':
@@ -76,9 +83,17 @@ void main() {
     });
 
     test('sessionResume returns session ID', () async {
-      final id = await gateway.sessionResume('sess-001');
-      expect(id, 'sess-001');
+      final id = await gateway.sessionResume('stored-abc');
+      expect(id, 'live-001');
       expect(gateway.recordedRpcs, contains('session.resume'));
+    });
+
+    test('sessionResumeDetailed returns live id and messages', () async {
+      final result = await gateway.sessionResumeDetailed('stored-abc');
+      expect(result.liveSessionId, 'live-001');
+      expect(result.storedSessionId, 'stored-abc');
+      expect(result.messages.length, 2);
+      expect(result.messages[0]['text'], 'Hi');
     });
 
     test('sessionMostRecent returns session ID', () async {
@@ -166,6 +181,17 @@ void main() {
       final summary = HermesSessionSummary.fromJson(json);
       // Should default to DateTime.now() — just verify no crash
       expect(summary.sessionId, 'sess-3');
+    });
+
+    test('fromJson accepts server id and unix started_at', () {
+      final summary = HermesSessionSummary.fromJson({
+        'id': 'db-sess-1',
+        'title': 'Server session',
+        'started_at': 1717200000,
+        'message_count': 2,
+      });
+      expect(summary.sessionId, 'db-sess-1');
+      expect(summary.messageCount, 2);
     });
   });
 }

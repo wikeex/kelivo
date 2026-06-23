@@ -10,6 +10,9 @@ import '../../../core/services/api/chat_api_service.dart';
 import '../../../core/services/logging/flutter_logger.dart';
 import '../../../core/providers/settings_provider.dart';
 import '../../../core/providers/backup_reminder_provider.dart';
+import '../../../core/providers/hermes_chat_provider.dart';
+import '../../../core/providers/hermes_gateway_provider.dart';
+import '../../../hermes/hermes_rpc.dart';
 import '../../../core/models/chat_item.dart';
 import '../../../core/providers/user_provider.dart';
 import '../../settings/pages/settings_page.dart';
@@ -3501,7 +3504,133 @@ class _SideDrawerState extends State<SideDrawer> with TickerProviderStateMixin {
       ),
     );
 
-    return Column(children: children);
+    return Column(
+      children: [
+        ...children,
+        _buildHermesSessionsSection(context, cs, textBase),
+      ],
+    );
+  }
+
+  Widget _buildHermesSessionsSection(
+    BuildContext context,
+    ColorScheme cs,
+    Color textBase,
+  ) {
+    final hp = context.watch<HermesGatewayProvider>();
+    if (hp.sessions.isEmpty) return const SizedBox.shrink();
+
+    final l10n = AppLocalizations.of(context)!;
+    final sessions = hp.sessions;
+    if (sessions.isEmpty) return const SizedBox.shrink();
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(10, 8, 10, 0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            child: Text(
+              'Hermes',
+              style: TextStyle(
+                fontSize: 12,
+                color: cs.outline,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          ...sessions
+              .take(10)
+              .map(
+                (s) =>
+                    _buildHermesSessionTile(context, cs, textBase, s, hp, l10n),
+              ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHermesSessionTile(
+    BuildContext context,
+    ColorScheme cs,
+    Color textBase,
+    HermesSessionSummary session,
+    HermesGatewayProvider hp,
+    AppLocalizations l10n,
+  ) {
+    final title = session.title?.trim().isNotEmpty == true
+        ? session.title!.trim()
+        : l10n.hermesSessionUntitled;
+    final subtitle = session.lastActiveAt != null
+        ? _dateLabel(context, session.lastActiveAt!)
+        : '';
+    return IosCardPress(
+      onTap: () => _resumeHermesSession(session, hp, context),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      borderRadius: BorderRadius.circular(10),
+      child: Row(
+        children: [
+          Icon(Lucide.Globe, size: 18, color: cs.primary),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(fontSize: 14, color: textBase),
+                ),
+                if (subtitle.isNotEmpty)
+                  Text(
+                    subtitle,
+                    style: TextStyle(fontSize: 11, color: cs.outline),
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _resumeHermesSession(
+    HermesSessionSummary session,
+    HermesGatewayProvider hp,
+    BuildContext context,
+  ) async {
+    String? convId;
+    bool closeDrawer;
+    try {
+      final cs = context.read<ChatService>();
+      if (!cs.initialized) {
+        await cs.init();
+      }
+      final conv = await cs.createDraftConversation(
+        title: session.title?.trim().isNotEmpty == true
+            ? session.title!.trim()
+            : 'Hermes',
+      );
+      convId = conv.id;
+      closeDrawer = !context.read<SettingsProvider>().keepSidebarOpenOnTopicTap;
+
+      await hp.resumeAndImportSessionToConversation(
+        storedSessionId: session.sessionId,
+        conversationId: conv.id,
+        chatService: cs,
+      );
+    } catch (e) {
+      if (!context.mounted) return;
+      showAppSnackBar(
+        context,
+        message: 'Failed to resume Hermes session: $e',
+        type: NotificationType.error,
+      );
+      return;
+    }
+    widget.onSelectConversation?.call(convId!, closeDrawer: closeDrawer);
   }
 }
 

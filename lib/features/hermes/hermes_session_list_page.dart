@@ -403,27 +403,6 @@ class _SessionTile extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
-                if (session.agentName != null) ...[
-                  const SizedBox(width: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 6,
-                      vertical: 2,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.secondaryContainer,
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: Text(
-                      session.agentName!,
-                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                        color: Theme.of(
-                          context,
-                        ).colorScheme.onSecondaryContainer,
-                      ),
-                    ),
-                  ),
-                ],
               ],
             ),
             const SizedBox(height: 8),
@@ -521,15 +500,6 @@ class HermesSessionDetailSheet extends StatelessWidget {
             session.title ?? l10n.hermesSessionUntitled,
             style: Theme.of(context).textTheme.titleLarge,
           ),
-          if (session.agentName != null) ...[
-            const SizedBox(height: 4),
-            Text(
-              '${l10n.hermesSessionAgent}: ${session.agentName}',
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: Theme.of(context).colorScheme.outline,
-              ),
-            ),
-          ],
           const SizedBox(height: 20),
           // Usage stats
           if (usage != null)

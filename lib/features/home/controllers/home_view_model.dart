@@ -6,7 +6,9 @@ import '../../../core/models/assistant.dart';
 import '../../../core/models/chat_message.dart';
 import '../../../core/models/conversation.dart';
 import '../../../core/providers/assistant_provider.dart';
+import '../../../core/providers/hermes_chat_provider.dart';
 import '../../../core/providers/hermes_gateway_provider.dart';
+import '../../../hermes/hermes_gateway.dart';
 import '../../../core/providers/settings_provider.dart';
 import '../../../core/services/api/chat_api_service.dart';
 import '../../../core/services/chat/chat_service.dart';
@@ -800,7 +802,13 @@ class HomeViewModel extends ChangeNotifier {
     // Reset processing state on switch
     isProcessingFiles.value = false;
 
-    if (currentConversation?.id == id) return;
+    if (currentConversation?.id == id) {
+      _chatController.reloadMessages();
+      await _syncLinkedHermesConversationIfNeeded(id);
+      notifyListeners();
+      unawaited(_drainQueuedInputIfReady(id));
+      return;
+    }
 
     _chatService.setCurrentConversation(id);
     final convo = _chatService.getConversation(id);
@@ -813,10 +821,43 @@ class HomeViewModel extends ChangeNotifier {
       }
       _chatController.setCurrentConversation(convo);
       _streamController.clearGeminiThoughtSigs();
+      await _syncLinkedHermesConversationIfNeeded(id);
       notifyListeners();
       onConversationSwitched?.call();
       unawaited(_drainQueuedInputIfReady(id));
     }
+  }
+
+  Future<void> _syncLinkedHermesConversationIfNeeded(String conversationId) async {
+    if (!_contextProvider.mounted) return;
+    try {
+      final hp = _contextProvider.read<HermesGatewayProvider>();
+      if (hp.state != HermesConnectionState.ready) return;
+      final linked = hp.linkedHermesSessionId(conversationId);
+      if (linked == null || linked.isEmpty) return;
+      hp.pinSession(linked);
+      final dbCount = _chatService.getMessageCount(conversationId);
+      if (dbCount > 0) {
+        if (_chatController.currentConversation?.id != conversationId ||
+            _chatController.messages.length < dbCount) {
+          await _chatController.switchConversation(conversationId);
+        }
+        if (_chatController.messages.length < dbCount) {
+          _chatController.loadEndWindow();
+        }
+        return;
+      }
+      await hp.resumeAndImportSessionToConversation(
+        storedSessionId: linked,
+        conversationId: conversationId,
+        chatService: _chatService,
+      );
+      await _chatController.switchConversation(conversationId);
+      if (_chatController.totalMessageCount >
+          _chatController.messages.length) {
+        _chatController.loadEndWindow();
+      }
+    } catch (_) {}
   }
 
   /// Create a new conversation.

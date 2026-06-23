@@ -34,6 +34,7 @@ class ChatService extends ChangeNotifier {
 
   // Localized default title for new conversations; set by UI on startup.
   String _defaultConversationTitle = 'New Chat';
+  String get defaultConversationTitle => _defaultConversationTitle;
   void setDefaultConversationTitle(String title) {
     if (title.trim().isEmpty) return;
     _defaultConversationTitle = title.trim();
@@ -182,6 +183,12 @@ class ChatService extends ChangeNotifier {
       return null;
     }
     return _messagesBox.get(messageId);
+  }
+
+  /// Drop cached messages for a conversation so the next read reloads storage.
+  void dropMessagesCache(String conversationId) {
+    _messagesCache.remove(conversationId);
+    notifyListeners();
   }
 
   List<ChatMessage> getMessages(String conversationId) {

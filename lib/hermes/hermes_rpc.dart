@@ -3,6 +3,21 @@
 
 import 'hermes_gateway.dart';
 
+/// Unwrap a JSON-RPC result that may be a bare list or a map wrapper.
+List<dynamic> _unwrapRpcList(
+  dynamic result, {
+  List<String> mapKeys = const ['sessions', 'messages'],
+}) {
+  if (result is List) return result;
+  if (result is Map) {
+    for (final key in mapKeys) {
+      final value = result[key];
+      if (value is List) return value;
+    }
+  }
+  return const [];
+}
+
 /// Session metadata returned by session.list / session.search.
 class HermesSessionSummary {
   final String sessionId;
@@ -25,10 +40,12 @@ class HermesSessionSummary {
 
   factory HermesSessionSummary.fromJson(Map<String, dynamic> json) {
     return HermesSessionSummary(
-      sessionId: json['session_id'] as String? ?? '',
+      sessionId: (json['session_id'] ?? json['id'])?.toString() ?? '',
       title: json['title'] as String?,
-      createdAt: _parseDate(json['created_at']),
-      lastActiveAt: _parseDate(json['last_active_at']),
+      createdAt: _parseDate(json['created_at'] ?? json['started_at']),
+      lastActiveAt: _parseOptionalDate(
+        json['last_active_at'] ?? json['started_at'],
+      ),
       messageCount: (json['message_count'] as num?)?.toInt() ?? 0,
       agentId: json['agent_id'] as String?,
       agentName: json['agent_name'] as String?,
@@ -36,12 +53,31 @@ class HermesSessionSummary {
   }
 
   static DateTime _parseDate(dynamic value) {
-    if (value == null) return DateTime.now();
-    if (value is String) {
-      return DateTime.tryParse(value) ?? DateTime.now();
-    }
-    return DateTime.now();
+    return _parseOptionalDate(value) ?? DateTime.now();
   }
+
+  static DateTime? _parseOptionalDate(dynamic value) {
+    if (value == null) return null;
+    if (value is String) return DateTime.tryParse(value);
+    if (value is num && value > 0) {
+      final ms = value > 1e12 ? value.toInt() : value.toInt() * 1000;
+      return DateTime.fromMillisecondsSinceEpoch(ms);
+    }
+    return null;
+  }
+}
+
+/// Result of [HermesSessionRpc.sessionResumeDetailed].
+class HermesResumeResult {
+  final String liveSessionId;
+  final String storedSessionId;
+  final List<Map<String, dynamic>> messages;
+
+  const HermesResumeResult({
+    required this.liveSessionId,
+    required this.storedSessionId,
+    this.messages = const [],
+  });
 }
 
 /// Session management.
@@ -57,7 +93,7 @@ extension HermesSessionRpc on HermesGateway {
       if (offset != null) 'offset': offset,
       if (sortBy != null) 'sort_by': sortBy,
     });
-    final list = result as List<dynamic>? ?? const [];
+    final list = _unwrapRpcList(result, mapKeys: const ['sessions']);
     return list
         .cast<Map<String, dynamic>>()
         .map((j) => HermesSessionSummary.fromJson(j))
@@ -73,7 +109,7 @@ extension HermesSessionRpc on HermesGateway {
       'query': query,
       if (limit != null) 'limit': limit,
     });
-    final list = result as List<dynamic>? ?? const [];
+    final list = _unwrapRpcList(result, mapKeys: const ['sessions', 'results']);
     return list
         .cast<Map<String, dynamic>>()
         .map((j) => HermesSessionSummary.fromJson(j))
@@ -94,14 +130,34 @@ extension HermesSessionRpc on HermesGateway {
 
   /// Resume an existing session.
   Future<String> sessionResume(String sessionId) async {
-    final result = await sendRpc('session.resume', {'session_id': sessionId});
-    return (result as Map<String, dynamic>)['session_id'] as String? ?? '';
+    final result = await sessionResumeDetailed(sessionId);
+    return result.liveSessionId;
+  }
+
+  /// Resume a stored session and return live id plus initial messages.
+  Future<HermesResumeResult> sessionResumeDetailed(String storedSessionId) async {
+    final result = await sendRpc('session.resume', {
+      'session_id': storedSessionId,
+    });
+    final map = (result as Map<String, dynamic>?) ?? {};
+    final liveId = map['session_id']?.toString() ?? '';
+    final resumed = map['resumed']?.toString() ?? storedSessionId;
+    final messages =
+        _unwrapRpcList(map, mapKeys: const ['messages'])
+            .cast<Map<String, dynamic>>();
+    return HermesResumeResult(
+      liveSessionId: liveId,
+      storedSessionId: resumed,
+      messages: messages,
+    );
   }
 
   /// Get the most recent session.
   Future<String> sessionMostRecent() async {
     final result = await sendRpc('session.most_recent');
-    return (result as Map<String, dynamic>)['session_id'] as String? ?? '';
+    final raw = (result as Map<String, dynamic>?)?['session_id'];
+    if (raw == null) return '';
+    return raw.toString();
   }
 
   /// Close a session.
@@ -181,7 +237,7 @@ extension HermesSessionRpc on HermesGateway {
       if (limit != null) 'limit': limit,
       if (before != null) 'before': before,
     });
-    final list = result as List<dynamic>? ?? const [];
+    final list = _unwrapRpcList(result, mapKeys: const ['messages']);
     return list.cast<Map<String, dynamic>>();
   }
 
@@ -194,7 +250,7 @@ extension HermesSessionRpc on HermesGateway {
   /// Get the active (currently-open) sessions for the current profile.
   Future<List<HermesSessionSummary>> sessionActiveList() async {
     final result = await sendRpc('session.active_list');
-    final list = result as List<dynamic>? ?? const [];
+    final list = _unwrapRpcList(result, mapKeys: const ['sessions']);
     return list
         .cast<Map<String, dynamic>>()
         .map((j) => HermesSessionSummary.fromJson(j))
