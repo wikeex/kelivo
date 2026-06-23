@@ -219,6 +219,10 @@ class HermesGatewayProvider extends ChangeNotifier {
   String? get lastError => _lastError;
   HermesConnectionErrorKind get lastErrorKind => _lastErrorKind;
 
+  /// Whether at least one Hermes backend has been configured, regardless of
+  /// current connection state (ready, connecting, error, etc.).
+  bool get hasAnyBackendConfigured => _config.hasAnyBackendConfigured;
+
   /// Initialize Hive config and load persisted backends.
   Future<void> init() async {
     await _config.init();

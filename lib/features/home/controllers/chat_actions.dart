@@ -464,10 +464,12 @@ class ChatActions {
     final assistantId = assistant?.id;
 
     // ── Hermes early path ─────────────────────────────────────────────
-    // When Hermes backend is connected, model selection is managed by the
+    // When Hermes backend is configured, model selection is managed by the
     // backend — Kelivo does not need to resolve a local provider/model.
+    // Check both ready (connected) and non-ready states (connecting, error,
+    // reconnecting) — as long as a backend is configured, skip local model.
     final hp = hermesProvider;
-    if (hp != null && hp.state == HermesConnectionState.ready) {
+    if (hp != null && hp.hasAnyBackendConfigured) {
       return _sendViaHermes(
         input: input,
         conversation: conversation,
@@ -665,6 +667,7 @@ class ChatActions {
         assistantMessage: assistantMessage,
         prompt: content,
         userImagePaths: input.imagePaths,
+        settings: settings,
       );
       return ChatActionResult.success(assistantMessage);
     } catch (e) {
@@ -678,6 +681,7 @@ class ChatActions {
     required ChatMessage assistantMessage,
     required String prompt,
     required List<String> userImagePaths,
+    required SettingsProvider settings,
   }) async {
     final conversationId = assistantMessage.conversationId;
 
@@ -720,10 +724,8 @@ class ChatActions {
         providerKey: 'hermes',
         modelId: 'hermes',
         assistant: null,
-        settings: contextProvider.read<SettingsProvider>(),
-        config: contextProvider.read<SettingsProvider>().getProviderConfig(
-          'hermes',
-        ),
+        settings: settings,
+        config: settings.getProviderConfig('hermes'),
         toolDefs: const [],
         supportsReasoning: false,
         enableReasoning: false,

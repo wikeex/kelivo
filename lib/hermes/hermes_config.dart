@@ -119,6 +119,13 @@ class HermesConfig {
     _box = await Hive.openBox<HermesBackendBox>(_boxName);
   }
 
+  /// Whether a Hermes backend has been configured at all.
+  /// Returns false if the box hasn't been initialized yet (safe for read-only checks).
+  bool get hasAnyBackendConfigured {
+    if (_box == null || !_box!.isOpen) return false;
+    return box.isNotEmpty;
+  }
+
   /// All persisted backends.
   List<HermesBackendBox> get backends => box.values.toList();
 
